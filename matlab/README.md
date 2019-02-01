@@ -1,6 +1,7 @@
 
-                          PITT ROCKETRY GROUND-CONTROL
-                                GPS GUI and Script
+                        
+PITT ROCKETRY GROUND-CONTROL - GPS GUI and Script
+  
   FUNCTIONALITY
   
                -recieve serial input from teensy 3.6
