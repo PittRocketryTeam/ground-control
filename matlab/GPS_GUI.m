@@ -460,17 +460,6 @@ dist=R*c;
 end
 
 
-% --- Executes on slider movement.
-function slider1_Callback(hObject, eventdata, handles)
-% hObject    handle to slider1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-end
-
-
 % --- Executes on button press in roverRelease.
 function roverRelease_Callback(hObject, eventdata, handles)
 % hObject    handle to roverRelease (see GCBO)
@@ -494,7 +483,7 @@ else
         set(handles.status,'color','black');
     else
         cla(handles.status);
-        text(0.15,.5,'Toggle Saftey Before Starting','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
+        text(0.15,.5,'Toggle Saftey Before Releasing Rover','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
         set(handles.status,'color','black');
     end
 end
