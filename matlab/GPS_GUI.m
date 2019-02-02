@@ -197,15 +197,15 @@ alt=[];
 startAlt=0;
 %loop to read serial port
 while (1)
-    inData=fgetl(serialIn);
+    inData=fgetl(serialIn); % read data from serial port
     if (strncmpi(inData,'Got: $GPGGA',11)) %check if GPS data is recieved %TODO correct for actual packet format
-        inData=strsplit(inData,',');
-        disp(inData{7});
+        inData=strsplit(inData,','); % split data by commas
+        disp(inData{7}); % display TODO what is index 7?
         if (strncmpi(inData{7},'1',1) || strncmpi(inData{7},'2',1))
             cla(handles.fixDisp);
             axes(handles.fixDisp);
             text(.30,.5,'YES','fontsize',24,'Parent',handles.fixDisp,'HorizontalAlignment','left'); %display yes for gps fix
-            set(gca,'color','green');
+            set(gca,'color','green'); % GPS fix color
             
             if (count==1)
                 %read in initial time
@@ -282,7 +282,7 @@ while (1)
     end
     
     drawnow; %evaluate push button
-    if get(handles.stopCom,'userdata')% stop condition
+    if get(handles.stopCom,'userdata') % stop condition
         break;
     end
     if str2double(inData)==-1.0
@@ -290,7 +290,8 @@ while (1)
     end
 end
 
-
+% TODO is there a way to wait for a full line of serial to be available,
+% rather than pausing for a few ms?
 pause(.005); %pause for 5 ms before repeating loop
 end
 
