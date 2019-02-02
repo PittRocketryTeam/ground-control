@@ -251,8 +251,8 @@ while (1)
     fprintf(rawData,"%s\n",inData);
     
     if (strncmpi(inData,'Got: $GPGGA',11)) %check if GPS data is recieved %TODO correct for actual packet format
-        inData=strsplit(inData,',');
-        if (strncmpi(inData{7},'1',1) || strncmpi(inData{7},'2',1))
+        gpsData=strsplit(inData,',');
+        if (strncmpi(gpsData{7},'1',1) || strncmpi(gpsData{7},'2',1))
             cla(handles.fixDisp);
             axes(handles.fixDisp);
             text(.30,.5,'YES','fontsize',24,'Parent',handles.fixDisp,'HorizontalAlignment','left'); %display yes for gps fix
@@ -260,23 +260,23 @@ while (1)
             
             if (count==1)
                 %read in initial time
-                startTime=str2double(inData{2});
+                startTime=str2double(gpsData{2});
                 time(count)=0;
                 
                 %TODO add print time out to timeDisp
                 
                 %read in initaial altitude
-                startAlt=str2double(inData{10});
+                startAlt=str2double(gpsData{10});
                 alt(count)=0;
                 
             else
                 %claculate current time
-                time(count)=str2double(inData{2})-startTime;
+                time(count)=str2double(gpsData{2})-startTime;
                 %disp(time(count));
                 
                 
                 %read in altitude and find difference between start and current
-                alt(count)=str2double(inData{10})-startAlt;
+                alt(count)=str2double(gpsData{10})-startAlt;
 
                 if (alt(count)>2 && launchDetected == false)
                     flightStart=time(count);
@@ -308,19 +308,19 @@ while (1)
             end
             
             %find latt and plot against time
-            lat(count)=DMStoDD(inData{3},'lat'); %extract lat and convert to proper form
+            lat(count)=DMStoDD(gpsData{3},'lat'); %extract lat and convert to proper form
             
             %determine if lat is positive or negative
-            if (strncmpi(inData{4},'S',1))
+            if (strncmpi(gpsData{4},'S',1))
                 lat(count)=-1*lat(count);
             end
             
             
             %find long and plot agianst time
-            long(count)=DMStoDD(inData{5},'lon'); 
+            long(count)=DMStoDD(gpsData{5},'lon'); 
             
             %determine if long is positive or negative
-            if (strncmpi(inData{6},'W',1))
+            if (strncmpi(gpsData{6},'W',1))
                 long(count)=-1*long(count);
             end
             
@@ -385,9 +385,9 @@ while (1)
             text(.30,.5,'NO','fontsize',24,'Parent',handles.fixDisp,'HorizontalAlignment','left');
             set(gca,'color','red');
         end
-    elseif (strncmpi(inData,'RSSI:',5))
-        inData=strsplit(inData,':');
-        rssi(rssiNum)=str2double(inData(2));
+    elseif (strncmpi(inData,'RSSI:',5)) && (strncmpi(gpsData{7},'1',1) || strncmpi(gpsData{7},'2',1))
+        rssiData=strsplit(inData,':');
+        rssi(rssiNum)=str2double(rssiData(2));
         axes(handles.rssiVsTrans)
         rssiNumArray(rssiNum)=rssiNum;
         plot(dist(1:count-1),rssi,'.r','markersize',20);
@@ -480,11 +480,16 @@ if get(handles.releaseSafety,'userdata')
     axes(handles.roverTranSent);
     cla(handles.roverTranSent);
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left');
-    
-    
+    cla(handles.status);
+    text(.15,.5,'ROVER RELEASED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
+    set(handles.status,'color','g');
     %TODO******** put code to release rover here
     
     set(handles.roverRelease,'userdata',1);
+else
+    cla(handles.status);
+    text(.15,.5,'Toggle Saftey Before Releasing','fontsize',16,'Parent',handles.status,'HorizontalAlignment','left','color','w');
+    set(handles.status,'color','black');
 end
 end
 
@@ -499,10 +504,15 @@ if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata'
     axes(handles.roverTranSent);
     cla(handles.roverTranSent);
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left');
-    
-    
+    cla(handles.status);
+    text(.15,.5,'ROVER STARTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
+    set(handles.status,'color','g');
     %TODO******** put code to release rover here
     
+else
+    cla(handles.status);
+    text(0.01,.5,'Release Rover and Toggle Saftey Before Starting','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
+    set(handles.status,'color','black');
 end
 end
 
