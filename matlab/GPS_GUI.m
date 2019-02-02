@@ -6,12 +6,26 @@
 %               : parse NMEA data string
 %               : Display longitude, lattitude, altitude, and flight time
 %               : enable start and stop of serial comunication
-%               : Display final rocket location
+%               : Display final rocket location and path on map
+%               : Print raw serial data to file
+%               : Calculate and display distance from launch site
+%
 %  NOTES
 %               : Set correct serial port on lines 124 and 127
 %               : Edit line 203 to correct packet header
 %               : To test with input file comment out 125-129 and
 %               un-comment 129-130
+%               : set range for long and lat
+%
+%  ADDITIONAL FILES
+%               *** THESE FILES MUST BE INCLUDED FOR PROPER OPPERATION***
+%               : GPS_GUI.m
+%               : GPS_GUI.fig
+%               : plot_google_map.m
+%               : makescale.m
+%               : DMStoDD.m
+%               : logo.png
+%               : api_key.mat
 %
 %
 %******************************************************************************%
@@ -44,7 +58,7 @@ function varargout = GPS_GUI(varargin)
 
 % Edit the above text to modify the response to help GPS_GUI
 
-% Last Modified by GUIDE v2.5 30-Jan-2019 14:29:21
+% Last Modified by GUIDE v2.5 02-Feb-2019 13:23:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -100,34 +114,62 @@ set(gca,'ytick',[]);
 axes(handles.fixDisp)
 set(gca,'xtick',[]);
 set(gca,'ytick',[]);
-
-%format plots
-axes(handles.latVsTime);
-xlabel('time','FontSize',17);
-ylabel('Latitude (degrees)','FontSize',17);
-
-axes(handles.longVsTime);
-xlabel('time','FontSize',17);
-ylabel('Longitude (degrees)','FontSize',17);
+axes(handles.maxDist)
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
+axes(handles.maxAlt)
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
+axes(handles.status)
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
+cla(handles.status) 
+text(.2,.5,'SYSTEM READY','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
+axes(handles.rssiDisp)
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
+set(handles.rssiDisp,'color','black');
 
 axes(handles.latVsLong);
-xlabel('Longitude (degrees)','FontSize',17);
-ylabel('Latitude (degrees)','FontSize',17);
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
 
-axes(handles.altVsTime);
-xlabel('time','FontSize',17);
-ylabel('Altitude (meter)','FontSize',17);
+axes(handles.distDisp);
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
 
-% %initialze serial communication
-delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer
-clear serialIn;
-global serialIn;
-serialIn = serial('COM3');
-fopen(serialIn);
+axes(handles.roverTranSent)
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
+axes(handles.roverTranRecieved)
+set(gca,'xtick',[]);
+set(gca,'ytick',[]);
+
+%setup push toggle safety swithches
+set(handles.releaseSafety,'userdata',0);
+set(handles.startSafety,'userdata',0);
 
 
+
+
+
+global serialIn rawData;
+
+% % %initialze serial communication
+% delete(instrfind({'Port'},{'COM8'}))%delete characters left in buffer
+% clear serialIn;
 % global serialIn;
-% serialIn=fopen('test_data.txt'); %test data
+% serialIn = serial('COM8');
+% fopen(serialIn);
+
+
+d=datestr(now,'dd-HH-MM-SS');
+filename=strcat(d,'results.txt');
+rawData=fopen(filename,'wt'); %open output file to write serial output to
+
+
+serialIn=fopen('test_data.txt'); %test data
+
 end
 
 % --- Outputs from this function are returned to the command line.
@@ -188,24 +230,33 @@ function startCom_Callback(hObject, eventdata, handles)
 
 set(handles.stopCom,'userdata',0); % sets loop stop condition to zero
 
-global serialIn; %get serial in global variable
+global serialIn rawData; %get serial in global variable
 
+dist=[];
+launchDetected=false;
+apogeeDetected=false;
 count=1;
 time=[];
 startTime=0;
 alt=[];
 startAlt=0;
+flightStart=0;
+rssi=[];
+rssiNum=1;
+rssiNumArray=[];
+
 %loop to read serial port
 while (1)
-    inData=fgetl(serialIn); % read data from serial port
+    inData=fgetl(serialIn);
+    fprintf(rawData,"%s\n",inData);
+    
     if (strncmpi(inData,'Got: $GPGGA',11)) %check if GPS data is recieved %TODO correct for actual packet format
-        inData=strsplit(inData,','); % split data by commas
-        disp(inData{7}); % display TODO what is index 7?
+        inData=strsplit(inData,',');
         if (strncmpi(inData{7},'1',1) || strncmpi(inData{7},'2',1))
             cla(handles.fixDisp);
             axes(handles.fixDisp);
             text(.30,.5,'YES','fontsize',24,'Parent',handles.fixDisp,'HorizontalAlignment','left'); %display yes for gps fix
-            set(gca,'color','green'); % GPS fix color
+            set(gca,'color','green');
             
             if (count==1)
                 %read in initial time
@@ -222,10 +273,35 @@ while (1)
                 %claculate current time
                 time(count)=str2double(inData{2})-startTime;
                 %disp(time(count));
-                %TODO add print time out to timeDisp
+                
                 
                 %read in altitude and find difference between start and current
                 alt(count)=str2double(inData{10})-startAlt;
+
+                if (alt(count)>2 && launchDetected == false)
+                    flightStart=time(count);
+                    axes(handles.status)
+                    cla(handles.status) %clears latitude display
+                    text(.15,.5,'LAUNCH DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
+                    set(handles.status,'Color','yellow');
+                    launchDetected=true;
+                end
+                
+                if (alt(count)<alt(count-1) && alt(count)<alt(count-2) && alt(count)<alt(count-3) && apogeeDetected==false)
+                   
+                    axes(handles.status)
+                    cla(handles.status) %clears latitude display
+                    text(.15,.5,'APOGEE DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
+                    set(handles.status,'Color','yellow');
+                    apogeeDetected=true;
+                end
+                
+                if (apogeeDetected==true && alt(count-1)>.999*alt(count) && alt(count-1)<1.001*alt(count) && alt(count)<alt(count-5))
+                    axes(handles.status)
+                    cla(handles.status) %clears latitude display
+                    text(.15,.5,'LANDING DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
+                    set(handles.status,'Color','green');
+                end
                 
                 axes(handles.altVsTime)%TODO find way to append plot to increase speed
                 plot(time,alt,'-k');
@@ -239,24 +315,37 @@ while (1)
                 lat(count)=-1*lat(count);
             end
             
-            axes(handles.latVsTime) %TODO find way to append plot to increase speed
-            plot(time,lat,'-k');
-            disp(lat)
             
             %find long and plot agianst time
-            long(count)=DMStoDD(inData{5},'lon'); %TODO convert to proper form
+            long(count)=DMStoDD(inData{5},'lon'); 
             
             %determine if long is positive or negative
             if (strncmpi(inData{6},'W',1))
                 long(count)=-1*long(count);
             end
             
-            axes(handles.longVsTime); %TODO find way to append plot to increase speed
-            plot(time,long,'-k');
+
             
             %plot lattitude vs. Longitude
             axes(handles.latVsLong); %TODO find way to append plot to increase speed
-            plot(lat,long,'-k');
+            
+            if(count==1)
+                plot(long,lat,'.b','MarkerSize',25);
+                set(gca,'xtick',[]);
+                set(gca,'ytick',[]);
+                ylim([(min(lat)-.0072),(max(lat)+.0072)]);  %set range of long and lat
+                xlim([(min(long)-.0072),(max(long)+.0072)]);
+                
+                plot_google_map('maptype','hybrid');
+                
+            else
+                axes(handles.latVsLong)
+                plot(long(1:count-1),lat(1:count-1),'-r','LineWidth',3); 
+                set(gca,'xtick',[]);
+                set(gca,'ytick',[]);
+            end
+            
+            
             
             %display current lattitude
             cla(handles.latDisp) %clears latitude display
@@ -267,33 +356,58 @@ while (1)
             cla(handles.longDisp) %clears latitude display
             text(.30,.5,num2str(long(count)),'fontsize',24,'Parent',handles.longDisp,'HorizontalAlignment','left');
             
-            %display current flight time
-            cla(handles.timeDisp) %clears latitude display
-            text(.30,.5,num2str(time(count)),'fontsize',24,'Parent',handles.timeDisp,'HorizontalAlignment','left');
+            %display max altitude
+            cla(handles.maxAlt) %clears latitude display
+            text(.30,.5,num2str(max(alt)),'fontsize',20,'Parent',handles.maxAlt,'HorizontalAlignment','left');
             
-            count=count+1; %incriment count
+            if launchDetected==true
+                %display current flight time
+                cla(handles.timeDisp) %clears latitude display
+                text(.375,.5,num2str(time(count)-flightStart),'fontsize',20,'Parent',handles.timeDisp,'HorizontalAlignment','left');
+            else
+                cla(handles.timeDisp) %clears latitude display
+                text(.375,.5,'0','fontsize',20,'Parent',handles.timeDisp,'HorizontalAlignment','left');
+            end
+            
+            dist(count)=haversine(long(1),long(count),lat(1),lat(count));
+            cla(handles.distDisp) %clears latitude display
+            text(.2,.5,num2str(dist(count)),'fontsize',20,'Parent',handles.distDisp,'HorizontalAlignment','left');
+            
+            cla(handles.maxDist) %clears latitude display
+            text(.05,.5,num2str(max(dist)),'fontsize',20,'Parent',handles.maxDist,'HorizontalAlignment','left');
+            
+            
+            count=count+1;
+            
         else
             cla(handles.fixDisp);
             axes(handles.fixDisp);
             text(.30,.5,'NO','fontsize',24,'Parent',handles.fixDisp,'HorizontalAlignment','left');
             set(gca,'color','red');
-            
         end
+    elseif (strncmpi(inData,'RSSI:',5))
+        inData=strsplit(inData,':');
+        rssi(rssiNum)=str2double(inData(2));
+        axes(handles.rssiVsTrans)
+        rssiNumArray(rssiNum)=rssiNum;
+        plot(dist(1:count-1),rssi,'.r','markersize',20);
+        cla(handles.rssiDisp);
+        text(0,.65,strcat('   ',num2str(rssi(rssiNum))),'fontsize',20,'Parent',handles.rssiDisp,'color','white');
+        rssiNum=rssiNum+1;
     end
     
     drawnow; %evaluate push button
-    if get(handles.stopCom,'userdata') % stop condition
+    if get(handles.stopCom,'userdata')% stop condition
+        axes(handles.latVsLong);
+        plot(long(count-1),lat(count-1),'.g','MarkerSize',25);
+        set(gca,'xtick',[]);
+        set(gca,'ytick',[]);
+        
         break;
     end
-    if str2double(inData)==-1.0
-        break;
-    end
+end
 end
 
-% TODO is there a way to wait for a full line of serial to be available,
-% rather than pausing for a few ms?
-pause(.005); %pause for 5 ms before repeating loop
-end
 
 
 % --- Executes on button press in stopCom.
@@ -325,4 +439,98 @@ function axes9_CreateFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 % Hint: place code in OpeningFcn to populate axes9
+end
+
+%--- Haversine function, calculates distance between two coordinates
+function dist=haversine(long1,long2,lat1,lat2)
+
+R=6371000; %radius of the earth in meters
+
+p1=degtorad(lat1);
+p2=degtorad(lat2);
+
+deltaP=degtorad(lat2-lat1);
+deltaL=degtorad(long2-long1);
+
+a=(sin(deltaP/2)^2)+cos(p1)*cos(p2)*(sin(deltaL/2)^2);
+c=2*atan2(sqrt(a),sqrt(1-a));
+
+dist=R*c;
+end
+
+
+% --- Executes on slider movement.
+function slider1_Callback(hObject, eventdata, handles)
+% hObject    handle to slider1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+end
+
+
+% --- Executes on button press in roverRelease.
+function roverRelease_Callback(hObject, eventdata, handles)
+% hObject    handle to roverRelease (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+if get(handles.releaseSafety,'userdata')
+    axes(handles.roverTranSent);
+    cla(handles.roverTranSent);
+    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left');
+    
+    
+    %TODO******** put code to release rover here
+    
+    set(handles.roverRelease,'userdata',1);
+end
+end
+
+
+% --- Executes on button press in roverStart.
+function roverStart_Callback(hObject, eventdata, handles)
+% hObject    handle to roverStart (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata')==1 %TODO add time after release condition
+    axes(handles.roverTranSent);
+    cla(handles.roverTranSent);
+    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left');
+    
+    
+    %TODO******** put code to release rover here
+    
+end
+end
+
+% --- Executes on button press in releaseSafety.
+function releaseSafety_Callback(hObject, eventdata, handles)
+% hObject    handle to releaseSafety (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of releaseSafety
+if get(handles.releaseSafety,'userdata')==0
+    set(handles.releaseSafety,'string','ON','BackgroundColor','green','userdata',1);
+elseif get(handles.releaseSafety,'userdata')==1
+    set(handles.releaseSafety,'string','OFF','BackgroundColor','red','userdata',0);
+end
+end
+
+
+% --- Executes on button press in startSafety.
+function startSafety_Callback(hObject, eventdata, handles)
+% hObject    handle to startSafety (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of startSafety
+if get(handles.startSafety,'userdata')==0
+    set(handles.startSafety,'string','ON','BackgroundColor','green','userdata',1);
+elseif get(handles.startSafety,'userdata')==1
+    set(handles.startSafety,'string','OFF','BackgroundColor','red','userdata',0);
+end
 end
