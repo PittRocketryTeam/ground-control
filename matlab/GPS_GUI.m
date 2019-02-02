@@ -148,7 +148,8 @@ set(gca,'ytick',[]);
 %setup push toggle safety swithches
 set(handles.releaseSafety,'userdata',0);
 set(handles.startSafety,'userdata',0);
-
+set(handles.roverStart,'userdata',0);
+set(handles.roverRelease,'userdata',0);
 
 
 
@@ -476,7 +477,7 @@ function roverRelease_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-if get(handles.releaseSafety,'userdata')
+if get(handles.releaseSafety,'userdata') && get(handles.roverRelease,'userdata')~=1
     axes(handles.roverTranSent);
     cla(handles.roverTranSent);
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left');
@@ -487,9 +488,15 @@ if get(handles.releaseSafety,'userdata')
     
     set(handles.roverRelease,'userdata',1);
 else
-    cla(handles.status);
-    text(.15,.5,'Toggle Saftey Before Releasing','fontsize',16,'Parent',handles.status,'HorizontalAlignment','left','color','w');
-    set(handles.status,'color','black');
+    if get(handles.roverRelease,'userdata')==1
+        cla(handles.status);
+        text(0.1,.5,'The rover has already been released','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
+        set(handles.status,'color','black');
+    else
+        cla(handles.status);
+        text(0.15,.5,'Toggle Saftey Before Starting','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
+        set(handles.status,'color','black');
+    end
 end
 end
 
@@ -500,19 +507,27 @@ function roverStart_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata')==1 %TODO add time after release condition
+if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata')==1 && get(handles.roverStart,'userdata')~= 1 %TODO add time after release condition
     axes(handles.roverTranSent);
     cla(handles.roverTranSent);
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left');
     cla(handles.status);
     text(.15,.5,'ROVER STARTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
     set(handles.status,'color','g');
-    %TODO******** put code to release rover here
+    %TODO******** put code to start rover here
+    
+    set(handles.roverStart,'userdata',1);
     
 else
-    cla(handles.status);
-    text(0.01,.5,'Release Rover and Toggle Saftey Before Starting','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
-    set(handles.status,'color','black');
+    if get(handles.roverStart,'userdata')==1
+        cla(handles.status);
+        text(0.1,.5,'The rover has already been started','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
+        set(handles.status,'color','black');
+    else
+        cla(handles.status);
+        text(0.01,.5,'Release Rover and Toggle Saftey Before Starting','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w');
+        set(handles.status,'color','black');
+    end
 end
 end
 
