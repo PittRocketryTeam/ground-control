@@ -167,9 +167,8 @@ set(handles.roverRelease,'userdata',0); %rover release
 global serialIn rawData;
 
 % %initialze serial communication
-% delete(instrfind({'Port'},{'COM8'}))%delete characters left in buffer
-% clear serialIn; %clear serialIn varibale
-% serialIn = serial('COM8'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
+% delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer
+% serialIn = serial('COM3'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
 % fopen(serialIn); %open serial port communication
 
 
@@ -219,7 +218,7 @@ function startCom_Callback(hObject, eventdata, handles)
 
 set(handles.stopCom,'userdata',0); %set loop stop condition to zero
 
-global serialIn rawData count; %get serial in global variable
+global serialIn rawData; %get serial in global variable
 
 %initialize variables used within function (purposes commented)
 dist=[]; % array to store distances from launchpad
@@ -241,7 +240,7 @@ while (1) %loop is always true, will be broken by break in if statement
     inData=fgetl(serialIn); %get a line from serial input
     fprintf(rawData,"%s\n",inData); %echo serial input to raw data output file
     
-    if (strncmpi(inData,'Got: $GPGGA',11)) %check if GPS data is recieved %*** ENSURE PACKET HEADER IS CORRECT ***
+    if (strncmpi(inData,'GOT REPLY: HEYY$GPGGA',21)) %check if GPS data is recieved %*** ENSURE PACKET HEADER IS CORRECT ***
         
         gpsData=strsplit(inData,','); %slpit string using ,
         
@@ -278,40 +277,44 @@ while (1) %loop is always true, will be broken by break in if statement
                 
                 
                 % ********* DETERMINE STATUS BASED ON ALTITUDE DATA ********
-                if (alt(count)>2.5 && launchDetected == false) %if altitude is greater than 2.5 meters ~ one rocket length and no launch has been detected
-                    
-                    flightStart=time(count); %set launch flight time start
-                    
-                    axes(handles.status); % open status display object
-                    cla(handles.status); %clear previous status display
-                    text(.15,.5,'LAUNCH DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display launch detected in status bar
-                    set(handles.status,'Color','yellow'); %set status bg color to yellow
-                    
-                    launchDetected=true; % set bool launch detected var to true
-                end
-                
-                %if altitude has declined for 4 transmissions in a row,
-                %determine that apogee has been reached as long as apogee
-                %has not already been detected and a launch has
-                if (alt(count)<alt(count-1) && alt(count)<alt(count-2) && alt(count)<alt(count-3) && apogeeDetected==false && launchDetected==true)
-                    
-                    axes(handles.status) % open status display object
-                    cla(handles.status) %clears status display
-                    text(.15,.5,'APOGEE DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display apogee detected in status bar
-                    set(handles.status,'Color','yellow'); %set background color to yellow
-                    
-                    apogeeDetected=true; %set bool apogee detected var to true
-                end
-                
-                %if apogee has been detected and landing hasn't, determine
-                %landing based on small altitude variation
-                if (apogeeDetected==true && alt(count-1)>.999*alt(count) && alt(count-1)<1.001*alt(count) && alt(count)<alt(count-8) && alt(count)<alt(count-3))
-                    
-                    axes(handles.status) %open status display object
-                    cla(handles.status) %clears status display
-                    text(.15,.5,'LANDING DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display landing detected
-                    set(handles.status,'Color','green'); %set bg color to green
-                end
+%                 if (alt(count)>2.5 && launchDetected == false) %if altitude is greater than 2.5 meters ~ one rocket length and no launch has been detected
+%                     
+%                     flightStart=time(count); %set launch flight time start
+%                     
+%                     axes(handles.status); % open status display object
+%                     cla(handles.status); %clear previous status display
+%                     text(.15,.5,'LAUNCH DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display launch detected in status bar
+%                     set(handles.status,'Color','yellow'); %set status bg color to yellow
+%                     
+%                     launchDetected=true; % set bool launch detected var to true
+%                 end
+%                 
+%                 %if altitude has declined for 4 transmissions in a row,
+%                 %determine that apogee has been reached as long as apogee
+%                 %has not already been detected and a launch has
+%                 
+%                 if (alt(count)<alt(count-1) && alt(count)<alt(count-2) && alt(count)<alt(count-3) && apogeeDetected==false && launchDetected==true && count>4)
+%                     
+%                     axes(handles.status) % open status display object
+%                     cla(handles.status) %clears status display
+%                     text(.15,.5,'APOGEE DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display apogee detected in status bar
+%                     set(handles.status,'Color','yellow'); %set background color to yellow
+%                     
+%                     apogeeDetected=true; %set bool apogee detected var to true
+%                 end
+%                 
+%                 
+%                 %if apogee has been detected and landing hasn't, determine
+%                 %landing based on small altitude variation
+%                 
+%                 if (apogeeDetected==true && alt(count-1)>.999*alt(count) && alt(count-1)<1.001*alt(count) && alt(count)<alt(count-5) && alt(count)<alt(count-3) && count>6)
+%                     
+%                     axes(handles.status) %open status display object
+%                     cla(handles.status) %clears status display
+%                     text(.15,.5,'LANDING DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display landing detected
+%                     set(handles.status,'Color','green'); %set bg color to green
+%                 end
+%                 
                 
                 % ^^^^^^^^ END DETERMINE STATUS BASED ON ALTITUDE DATA ^^^^^^
                 
@@ -404,7 +407,7 @@ while (1) %loop is always true, will be broken by break in if statement
             set(gca,'color','red'); %set background color to red
         end
         
-    elseif (strncmpi(inData,'RSSI:',5)) && (strncmpi(gpsData{7},'1',1) || strncmpi(gpsData{7},'2',1)) % check if RSSI data was recieved
+    elseif ((strncmpi(inData,'RSSI:',5))&& count>1 && (strncmpi(gpsData{7},'1',1) || strncmpi(gpsData{7},'2',1))) % check if RSSI data was recieved
         
         rssiData=strsplit(inData,':'); % split string
         rssi(rssiNum)=str2double(rssiData(2)); %convert rssi value to a double
@@ -422,9 +425,11 @@ while (1) %loop is always true, will be broken by break in if statement
         
         axes(handles.latVsLong); %get map display object
         plot(long(count-1),lat(count-1),'.g','MarkerSize',25); %if stop button was pushed then display a green dot for final rocket location
-        
+        assignin('base','rssi',rssi);
+        assignin('base','dist',dist)
         break; %break loop and end function
     end
+    
 end
 end
 
