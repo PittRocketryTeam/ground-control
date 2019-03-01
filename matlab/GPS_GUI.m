@@ -67,7 +67,7 @@ function varargout = GPS_GUI(varargin)
 
 % Edit the above text to modify the response to help GPS_GUI
 
-% Last Modified by GUIDE v2.5 28-Feb-2019 20:41:50
+% Last Modified by GUIDE v2.5 01-Mar-2019 00:27:30
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -160,6 +160,7 @@ set(handles.releaseSafety,'userdata',0); %release toggle
 set(handles.startSafety,'userdata',0); %start toggle
 set(handles.roverStart,'userdata',0); %rover start
 set(handles.roverRelease,'userdata',0); %rover release
+set(handles.LoadRover,'userdata',0); %rover load
 
 
 
@@ -242,7 +243,6 @@ gpsData{7}=' '; % set gpsData cell 7 to empty string to eleminate error if loop 
 while (1) %loop is always true, will be broken by break in if statement
     
     inData=fgetl(gpsGround); %get a line from serial input
-    disp(inData);
     
     fprintf(rawData,"%s\n",inData); %echo serial input to raw data output file
     
@@ -483,6 +483,15 @@ if get(handles.releaseSafety,'userdata') && get(handles.roverRelease,'userdata')
     fprintf(rawData,'%s','Command Sent: U_UPCMDRELEASE');
     
     
+    str=fgetl(gpsGround);
+    fprintf(rawData,str);
+    while (strncmp(str,'RELEASE CONFIRMED',17) ~= 1)
+        pause(.5);
+        str=fgetl(gpsGround);
+        fprintf(rawData,str);
+    end
+    
+    
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time the transmission was sent
     
     cla(handles.status); %clear status bar
@@ -490,6 +499,7 @@ if get(handles.releaseSafety,'userdata') && get(handles.roverRelease,'userdata')
     set(handles.status,'color','g'); %set background color to green
     
     set(handles.roverRelease,'userdata',1); %set rover release variable to one meaning rover release is true
+    
     
 else % either rover was already released or release button was not turned on using safety toggle
     
@@ -506,6 +516,7 @@ else % either rover was already released or release button was not turned on usi
         set(handles.status,'color','black'); %bg color balck
     end
 end
+startCom_Callback(hObject, eventdata, handles)
 end
 
 
@@ -530,7 +541,7 @@ if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata'
     cla(handles.status);
     text(.15,.5,'ROVER STARTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
     set(handles.status,'color','g');
-    %TODO******** put code to start rover here
+    
     
     set(handles.roverStart,'userdata',1); %set the rover start variable to one meaning that the rover has been started
     
@@ -550,6 +561,7 @@ else %if one of above conditions is false
         
     end
 end
+startCom_Callback(hObject, eventdata, handles)
 end
 
 % --- Executes on button press in releaseSafety.
@@ -583,6 +595,33 @@ function LoadRover_Callback(hObject, eventdata, handles)
 global gpsGround rawData;
 %load payload
 
-fprintf(gpsGround,'%s','CMDLOADPAYLOAD');
-fprintf(rawData,'%s','Command Sent: CMDLOADROVER');
+%check if payload has already been loaded
+if get(handles.LoadRover,'userdata')==0
+
+    %send command to load the rover
+    fprintf(gpsGround,'%s','CMDLOADPAYLOAD');
+    fprintf(rawData,'%s','Command Sent: CMDLOADROVER');
+    
+    str=fgetl(gpsGround);
+    fprintf(rawData,str);
+    while (strncmp(str,'LOAD CONFIRMED',14) ~= 1)
+        pause(.5);
+        str=fgetl(gpsGround);
+        fprintf(rawData,str);
+    end
+    
+    cla(handles.status); %clear status bar
+    text(0.15,.5,'ROVER LOADED','fontsize',28,'Parent',handles.status,'HorizontalAlignment','left','color','k');
+    set(handles.status,'color','yellow'); %bg color yellow
+    
+    set(handles.LoadRover,'userdata',1);
+    
+else
+    cla(handles.status); %clear status bar
+    text(0.01,.5,'The rover has already been loaded','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w'); %display error message
+    set(handles.status,'color','black'); %bg color black
+end
+
+startCom_Callback(hObject, eventdata, handles)
+
 end
