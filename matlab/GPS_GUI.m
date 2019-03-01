@@ -67,7 +67,7 @@ function varargout = GPS_GUI(varargin)
 
 % Edit the above text to modify the response to help GPS_GUI
 
-% Last Modified by GUIDE v2.5 02-Feb-2019 13:23:04
+% Last Modified by GUIDE v2.5 28-Feb-2019 20:41:50
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -164,20 +164,24 @@ set(handles.roverRelease,'userdata',0); %rover release
 
 
 %initialize global variables for serial input and raw output file
-global serialIn rawData;
+global gpsGround roverGround rawData;
 
-% %initialze serial communication
-% delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer
-% serialIn = serial('COM3'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
-% fopen(serialIn); %open serial port communication
+%initialze serial communication for gps ground control
+delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer
+gpsGround = serial('COM3'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
+fopen(gpsGround); %open serial port communication
 
+%initialze serial communication for rover ground control
+% delete(instrfind({'Port'},{'COM4'}))%delete characters left in buffer
+% roverGround = serial('COM4'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
+% fopen(roverGround); %open serial port communication
 
 d=datestr(now,'dd-HH-MM-SS'); %declare string for date
 filename=strcat(d,'results.txt'); %create unique raw output file name
 rawData=fopen(filename,'wt'); %open output file to write raw serial output to
 
 
-serialIn=fopen('test_data.txt'); %test data **** COMMENT OUT UNLESS TESTING FROM FILE ***
+%serialIn=fopen('test_data.txt'); %test data **** COMMENT OUT UNLESS TESTING FROM FILE ***
 
 %******** END OF ENVIRONMENT and VARIABLE SETUP ************
 end
@@ -218,7 +222,7 @@ function startCom_Callback(hObject, eventdata, handles)
 
 set(handles.stopCom,'userdata',0); %set loop stop condition to zero
 
-global serialIn rawData; %get serial in global variable
+global gpsGround rawData; %get serial in global variable
 
 %initialize variables used within function (purposes commented)
 dist=[]; % array to store distances from launchpad
@@ -237,7 +241,9 @@ gpsData{7}=' '; % set gpsData cell 7 to empty string to eleminate error if loop 
 %loop to read serial port
 while (1) %loop is always true, will be broken by break in if statement
     
-    inData=fgetl(serialIn); %get a line from serial input
+    inData=fgetl(gpsGround); %get a line from serial input
+    disp(inData);
+    
     fprintf(rawData,"%s\n",inData); %echo serial input to raw data output file
     
     if (strncmpi(inData,'GOT REPLY: HEYY$GPGGA',21)) %check if GPS data is recieved %*** ENSURE PACKET HEADER IS CORRECT ***
@@ -277,47 +283,22 @@ while (1) %loop is always true, will be broken by break in if statement
                 
                 
                 % ********* DETERMINE STATUS BASED ON ALTITUDE DATA ********
-%                 if (alt(count)>2.5 && launchDetected == false) %if altitude is greater than 2.5 meters ~ one rocket length and no launch has been detected
-%                     
-%                     flightStart=time(count); %set launch flight time start
-%                     
-%                     axes(handles.status); % open status display object
-%                     cla(handles.status); %clear previous status display
-%                     text(.15,.5,'LAUNCH DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display launch detected in status bar
-%                     set(handles.status,'Color','yellow'); %set status bg color to yellow
-%                     
-%                     launchDetected=true; % set bool launch detected var to true
-%                 end
-%                 
-%                 %if altitude has declined for 4 transmissions in a row,
-%                 %determine that apogee has been reached as long as apogee
-%                 %has not already been detected and a launch has
-%                 
-%                 if (alt(count)<alt(count-1) && alt(count)<alt(count-2) && alt(count)<alt(count-3) && apogeeDetected==false && launchDetected==true && count>4)
-%                     
-%                     axes(handles.status) % open status display object
-%                     cla(handles.status) %clears status display
-%                     text(.15,.5,'APOGEE DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display apogee detected in status bar
-%                     set(handles.status,'Color','yellow'); %set background color to yellow
-%                     
-%                     apogeeDetected=true; %set bool apogee detected var to true
-%                 end
-%                 
-%                 
-%                 %if apogee has been detected and landing hasn't, determine
-%                 %landing based on small altitude variation
-%                 
-%                 if (apogeeDetected==true && alt(count-1)>.999*alt(count) && alt(count-1)<1.001*alt(count) && alt(count)<alt(count-5) && alt(count)<alt(count-3) && count>6)
-%                     
-%                     axes(handles.status) %open status display object
-%                     cla(handles.status) %clears status display
-%                     text(.15,.5,'LANDING DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display landing detected
-%                     set(handles.status,'Color','green'); %set bg color to green
-%                 end
+                if (alt(count)>1 && launchDetected == false) %if altitude is greater than 1 meters ~ one half rocket length and no launch has been detected
+                    
+                    flightStart=time(count); %set launch flight time start
+                    
+                    axes(handles.status); % open status display object
+                    cla(handles.status); %clear previous status display
+                    text(.15,.5,'LAUNCH DETECTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display launch detected in status bar
+                    set(handles.status,'Color','yellow'); %set status bg color to yellow
+                    
+                    launchDetected=true; % set bool launch detected var to true
+                end
+                
+%               ADD CODE FOR DETERMINING APOGEE and LANDING
 %                 
                 
                 % ^^^^^^^^ END DETERMINE STATUS BASED ON ALTITUDE DATA ^^^^^^
-                
                 
                 axes(handles.altVsTime) %get altitude vs time graph object
                 plot(time,alt,'-k','LineWidth',2); %plot alt vs time with thick black line
@@ -422,11 +403,13 @@ while (1) %loop is always true, will be broken by break in if statement
     drawnow; %evaluate push button
     
     if get(handles.stopCom,'userdata') %check push button value
-        
-        axes(handles.latVsLong); %get map display object
-        plot(long(count-1),lat(count-1),'.g','MarkerSize',25); %if stop button was pushed then display a green dot for final rocket location
         assignin('base','rssi',rssi);
         assignin('base','dist',dist)
+        if launchDetected==true
+            axes(handles.latVsLong); %get map display object
+            plot(long(count-1),lat(count-1),'.g','MarkerSize',25); %if stop button was pushed then display a green dot for final rocket location
+            
+        end
         break; %break loop and end function
     end
     
@@ -486,6 +469,8 @@ end
 % on and rover has not already been released
 function roverRelease_Callback(hObject, eventdata, handles)
 
+global gpsGround rawData;
+
 %check to see if the button has been turned on and rover has not already
 %been released
 if get(handles.releaseSafety,'userdata') && get(handles.roverRelease,'userdata')~=1
@@ -494,6 +479,8 @@ if get(handles.releaseSafety,'userdata') && get(handles.roverRelease,'userdata')
     cla(handles.roverTranSent); %clear rover tran sent display
     
     %TODO******** put code to release rover here
+    fprintf(gpsGround,'%s','CMDRELEASE');
+    fprintf(rawData,'%s','Command Sent: U_UPCMDRELEASE');
     
     
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time the transmission was sent
@@ -528,6 +515,7 @@ end
 %started
 function roverStart_Callback(hObject, eventdata, handles)
 
+global roverGround;
 %check if the rover start button is turned on and if the rover was released
 %and the the rover has not already been started %TODO add time condition
 if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata')==1 && get(handles.roverStart,'userdata')~= 1 %TODO add time after release condition
@@ -536,6 +524,7 @@ if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata'
     cla(handles.roverTranSent); %clear display
     
     %TODO******** put code to start rover here
+    fprintf(roverGround,'%s','COMMAND_HERE');
     
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time that the transmission was sent
     cla(handles.status);
@@ -586,4 +575,14 @@ elseif get(handles.startSafety,'userdata')==1 %check if start safety on
     set(handles.startSafety,'string','OFF','BackgroundColor','red','userdata',0); %toggle and change display
 end
 
+end
+
+
+% --- Executes on button press in LoadRover.
+function LoadRover_Callback(hObject, eventdata, handles)
+global gpsGround rawData;
+%load payload
+
+fprintf(gpsGround,'%s','CMDLOADPAYLOAD');
+fprintf(rawData,'%s','Command Sent: CMDLOADROVER');
 end
