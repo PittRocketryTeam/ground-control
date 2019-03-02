@@ -67,7 +67,7 @@ function varargout = GPS_GUI(varargin)
 
 % Edit the above text to modify the response to help GPS_GUI
 
-% Last Modified by GUIDE v2.5 01-Mar-2019 00:27:30
+% Last Modified by GUIDE v2.5 01-Mar-2019 17:35:14
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -168,14 +168,14 @@ set(handles.LoadRover,'userdata',0); %rover load
 global gpsGround roverGround rawData;
 
 %initialze serial communication for gps ground control
-delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer
-gpsGround = serial('COM3'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
-fopen(gpsGround); %open serial port communication
+ delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer
+ gpsGround = serial('COM3'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
+ fopen(gpsGround); %open serial port communication
 
 %initialze serial communication for rover ground control
-% delete(instrfind({'Port'},{'COM4'}))%delete characters left in buffer
-% roverGround = serial('COM4'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
-% fopen(roverGround); %open serial port communication
+%delete(instrfind({'Port'},{'COM7'}))%delete characters left in buffer
+%roverGround = serial('COM7'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
+%fopen(roverGround); %open serial port communication
 
 d=datestr(now,'dd-HH-MM-SS'); %declare string for date
 filename=strcat(d,'results.txt'); %create unique raw output file name
@@ -482,17 +482,21 @@ if get(handles.releaseSafety,'userdata') && get(handles.roverRelease,'userdata')
     fprintf(gpsGround,'%s','CMDRELEASE');
     fprintf(rawData,'%s','Command Sent: U_UPCMDRELEASE');
     
+    cla(handles.roverTranSent);
+    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time that the transmission was sent
     
     str=fgetl(gpsGround);
     fprintf(rawData,str);
-    while (strncmp(str,'RELEASE CONFIRMED',17) ~= 1)
-        pause(.5);
-        str=fgetl(gpsGround);
-        fprintf(rawData,str);
+    for i=1:5
+        if (strncmp(str,'EXECUTION CONFIRMED',19) ~= 1)
+            pause(.5);
+            str=fgetl(gpsGround);
+            fprintf(rawData,str);
+        end
     end
     
-    
-    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time the transmission was sent
+    cla(handles.roverTranRecieved);
+    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranRecieved,'HorizontalAlignment','left'); %display the time the transmission was sent
     
     cla(handles.status); %clear status bar
     text(.15,.5,'ROVER RELEASED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left'); %display rover released
@@ -534,10 +538,18 @@ if get(handles.startSafety,'userdata')==1 && get(handles.roverRelease,'userdata'
     axes(handles.roverTranSent); %get rover tran sent display object
     cla(handles.roverTranSent); %clear display
     
-    %TODO******** put code to start rover here
-    fprintf(roverGround,'%s','COMMAND_HERE');
-    
+    %code to start rover here
+    fprintf(roverGround,'A');
     text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time that the transmission was sent
+    while strncmp(fgetl(roverGround),'Got reply:',10)~=1
+        fprintf(roverGround,'A');
+        cla(handles.roverTranSent);
+        text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time that the transmission was sent
+        pause(1);
+    end
+    
+    cla(handles.roverTranRecieved);
+    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranRecieved,'HorizontalAlignment','left'); %display the time that the transmission was recieved
     cla(handles.status);
     text(.15,.5,'ROVER STARTED','fontsize',24,'Parent',handles.status,'HorizontalAlignment','left');
     set(handles.status,'color','g');
@@ -602,12 +614,19 @@ if get(handles.LoadRover,'userdata')==0
     fprintf(gpsGround,'%s','CMDLOADPAYLOAD');
     fprintf(rawData,'%s','Command Sent: CMDLOADROVER');
     
+    cla(handles.roverTranSent);
+    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranSent,'HorizontalAlignment','left'); %display the time that the transmission was sent
+    
     str=fgetl(gpsGround);
     fprintf(rawData,str);
-    while (strncmp(str,'LOAD CONFIRMED',14) ~= 1)
-        pause(.5);
-        str=fgetl(gpsGround);
-        fprintf(rawData,str);
+    for i=1:6
+        if (strncmp(str,'EXECUTION CONFIRMED',19) ~= 1)
+            pause(.5);
+            str=fgetl(gpsGround);
+            cla(handles.roverTranRecieved);
+            text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranRecieved,'HorizontalAlignment','left'); %display the time that the transmission was sent
+            fprintf(rawData,str);
+        end
     end
     
     cla(handles.status); %clear status bar
@@ -623,5 +642,35 @@ else
 end
 
 startCom_Callback(hObject, eventdata, handles)
+
+end
+
+
+% --- Executes on button press in testRover.
+function testRover_Callback(hObject, eventdata, handles)
+
+global roverGround;
+
+fprintf(roverGround,'T');
+
+pause(4);
+str=fgetl(roverGround);
+str=fgetl(roverGround);
+str=fgetl(roverGround);
+disp(str);
+if strncmp(str,'Got reply:',10)==1
+    
+    cla(handles.roverTranRecieved);
+    text(.15,.5,datestr(now,'HH:MM:SS.FFF'),'fontsize',20,'Parent',handles.roverTranRecieved,'HorizontalAlignment','left'); %display the time that the transmission was sent
+    
+    cla(handles.status); %clear status bar
+    text(0.15,.5,'TEST SUCCESSFUL','fontsize',28,'Parent',handles.status,'HorizontalAlignment','left','color','k');
+    set(handles.status,'color','b'); %bg color yellow
+else
+    cla(handles.status); %clear status bar
+    text(0.01,.5,'No test signal recieved','fontsize',14,'Parent',handles.status,'HorizontalAlignment','left','color','w'); %display error message
+    set(handles.status,'color','black'); %bg color black
+end
+
 
 end
