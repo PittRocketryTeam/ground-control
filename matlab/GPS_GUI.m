@@ -18,12 +18,50 @@
 %               : send rover start signal
 %               : recieve rover transmissions
 %
-%  NOTES
-%               : Set correct serial port on lines 169, 170, 174, and 175
-%               : Edit line 247 to correct packet header
-%               : Set filename on line 158 if desired
-%               : set range for long and lat (lines 327 and 328)
-%               : MAXIMIZE GUI WINDOW for optimal viewing
+%   INSTRUCTIONS FOR DUMMIES AKA HARRIS
+%
+%               1) Set correct serial port on lines 206, 207, 211, and 212
+%
+%               2) Edit line 288 to correct packet header (You shouldn't
+%               have to change this)
+%
+%               3) Set filename on line 216 if desired, just change the
+%               'results.txt' to 'NewName.txt' 
+%
+%               4) set range for long and lat (lines 368 and 369) *This
+%               should be fine but if it goes out of range just increase
+%               the value in increments of .001
+%    
+%               5) connect your laptop to a mobile hotspot (it will
+%               function without one but you won't see a map
+%
+%               6) Click run and maximize the window. (have your volume on
+%               so you can hear if matlab throws any errors
+%       
+%               6) Click start below the logo once
+%
+%               7) at this poit you should see a map load and the gps Fix
+%               status will be shown to the right along with the RSSI
+%
+%               8) Launch the rocket whenever ready. The connection may be
+%               lost. the serial port will time out after 30 minutes.
+%
+%               9) Point the ground control antenna in the direction of the
+%               rocket. If you cannot reconnect walk around the field
+%               until you can.
+%
+%               10) assuming the rocket has landed and you are recieving
+%               data, you can send a rover release command.
+%   
+%               11) test the rover then activate it. Don't hit stop durring
+%               this, the rover command buttons trigger an interrupt so
+%               there is no issue recieving gps data at the same time.
+%
+%               12) if possible, take a screen video of the flight. 
+%        
+%               13) call me if anything goes wrong before making
+%               significant changes to the code (717-579-9603)
+%
 %
 %  ADDITIONAL FILES
 %               *** THESE FILES MUST BE INCLUDED FOR PROPER OPPERATION***
@@ -177,6 +215,10 @@ fopen(roverGround); %open serial port communication
 d=datestr(now,'dd-HH-MM-SS'); %declare string for date
 filename=strcat(d,'results.txt'); %create unique raw output file name
 rawData=fopen(filename,'wt'); %open output file to write raw serial output to
+
+Timeout = 1800;
+set(gpsGround, 'Timeout', Timeout);
+set(roverGround,'Timeout',Timeout);
 
 
 %serialIn=fopen('test_data.txt'); %test data **** COMMENT OUT UNLESS TESTING FROM FILE ***
