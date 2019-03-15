@@ -15,15 +15,14 @@
 %               : Display max altitude and max distance
 %               : Rover release safety
 %               : send rover release signal
-%               : sent rover start signal
+%               : send rover start signal
 %               : recieve rover transmissions
 %
 %  NOTES
-%               : Set correct serial port on lines 124 and 127
-%               : Edit line 203 to correct packet header
-%               : To test with input file comment out 125-129 and
-%               un-comment 129-130
-%               : set range for long and lat if 2500 radius is not desired
+%               : Set correct serial port on lines 169, 170, 174, and 175
+%               : Edit line 247 to correct packet header
+%               : Set filename on line 158 if desired
+%               : set range for long and lat (lines 327 and 328)
 %               : MAXIMIZE GUI WINDOW for optimal viewing
 %
 %  ADDITIONAL FILES
@@ -162,20 +161,18 @@ set(handles.roverStart,'userdata',0); %rover start
 set(handles.roverRelease,'userdata',0); %rover release
 set(handles.LoadRover,'userdata',0); %rover load
 
-
-
 %initialize global variables for serial input and raw output file
 global gpsGround roverGround rawData;
 
 %initialze serial communication for gps ground control
- delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer
- gpsGround = serial('COM3'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
- fopen(gpsGround); %open serial port communication
+delete(instrfind({'Port'},{'COM3'}))%delete characters left in buffer                               ***MAKE SURE THIS IS RIGHT***
+gpsGround = serial('COM3'); %Declare COM port                                                       ***MAKE SURE THIS IS RIGHT***
+fopen(gpsGround); %open serial port communication
 
 %initialze serial communication for rover ground control
-%delete(instrfind({'Port'},{'COM7'}))%delete characters left in buffer
-%roverGround = serial('COM7'); %Declare COM port ***MAKE SURE THIS IS RIGHT***
-%fopen(roverGround); %open serial port communication
+delete(instrfind({'Port'},{'COM7'}))%delete characters left in buffer                               ***MAKE SURE THIS IS RIGHT***
+roverGround = serial('COM7'); %Declare COM port                                                     ***MAKE SURE THIS IS RIGHT***
+fopen(roverGround); %open serial port communication
 
 d=datestr(now,'dd-HH-MM-SS'); %declare string for date
 filename=strcat(d,'results.txt'); %create unique raw output file name
@@ -295,8 +292,7 @@ while (1) %loop is always true, will be broken by break in if statement
                     launchDetected=true; % set bool launch detected var to true
                 end
                 
-%               ADD CODE FOR DETERMINING APOGEE and LANDING
-%                 
+%               ADD CODE FOR DETERMINING APOGEE and LANDING          
                 
                 % ^^^^^^^^ END DETERMINE STATUS BASED ON ALTITUDE DATA ^^^^^^
                 
@@ -327,8 +323,8 @@ while (1) %loop is always true, will be broken by break in if statement
                 plot(long(1),lat(1),'.b','MarkerSize',25); %display starting location on map using blue dot
                 set(gca,'xtick',[]); %format axis
                 set(gca,'ytick',[]);
-                ylim([(min(lat)-.0072),(max(lat)+.0072)]);  %set range of long and lat to ~2500 ft in each direction
-                xlim([(min(long)-.0072),(max(long)+.0072)]);
+                ylim([(min(lat)-.009),(max(lat)+.009)]);  %set range of long and lat to ~2500 ft in each direction
+                xlim([(min(long)-.009),(max(long)+.009)]);
                 
                 plot_google_map('maptype','hybrid'); %use google maps to plot location on the map
                 
@@ -336,7 +332,6 @@ while (1) %loop is always true, will be broken by break in if statement
                 
                 %this will overlay the plot on the same map without haveing
                 %to reload the google maps api
-                
                 axes(handles.latVsLong) %get map display object
                 plot(long,lat,'-r','LineWidth',3); %plot line representing path
                 
